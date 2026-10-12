@@ -169,6 +169,8 @@ def render_ann(df, source_name="사용자 데이터"):
         st.info("데이터·변수·설정이 바뀌어 이전 결과를 숨겼습니다. 다시 학습해 주세요.")
     if st.button("인공신경망 학습 시작", type="primary", key="ann_train"):
         st.session_state.pop("ann_run", None)
+        # 재학습 시 과거 입력·예측 비교 결과가 새 모델의 결과처럼 남지 않도록 초기화
+        st.session_state.pop(f"ann_prediction_{signature[:12]}", None)
         bar = st.progress(0.0, text="학습 준비 중")
         try:
             def progress(current, maximum):
@@ -324,30 +326,124 @@ def _render_results(result, source_name, signature):
     if (result.data.y >= 0).all() and (test["예측값"] < 0).any():
         st.warning("일부 예측값이 음수입니다. 이 신경망에는 비음수 제약이 없으며 값을 임의로 0으로 보정하지 않습니다.")
 
-    st.subheader("새로운 입력값으로 예측")
+    st.subheader("새로운 입력값으로 예측 · 변화량 확인")
+    st.caption("목표변수(Y)는 위에서 선택한 학습 정답입니다. 아래에서는 입력변수(X)를 바꿔 "
+               "학습된 모델의 예측 Y가 얼마나 변하는지 확인합니다. 입력을 바꾼 뒤에는 반드시 "
+               "'입력값 예측' 버튼을 누르세요. 목표변수 자체를 바꾸면 재학습해야 합니다.")
     train_X = result.data.X.iloc[result.splits["학습"]]
+    baseline_values = {name: float(train_X[name].median()) for name in train_X.columns}
+    cache_key = f"ann_prediction_{signature[:12]}"
     with st.form(f"ann_predict_{signature[:12]}"):
         cells = st.columns(min(3, len(train_X.columns)))
         values = {}
         for i, name in enumerate(train_X.columns):
             values[name] = cells[i % len(cells)].number_input(
-                name, value=float(train_X[name].median()), format="%.9f",
+                name, value=baseline_values[name], format="%.9f",
                 help=f"학습 범위: {train_X[name].min():.6g} ~ {train_X[name].max():.6g}",
                 key=f"ann_input_{signature[:12]}_{i}",
             )
-        predict_clicked = st.form_submit_button("입력값 예측")
+        predict_clicked = st.form_submit_button("입력값 예측 · 이전 값과 비교")
+
     if predict_clicked:
         try:
-            new_frame = pd.DataFrame([values])
-            estimate = float(result.predict(new_frame)[0])
-            st.metric(f"예측 {result.data.y.name}", f"{estimate:.6g}")
-            outside = [c for c in values if not train_X[c].min() <= values[c] <= train_X[c].max()]
-            if outside:
-                st.warning("학습 범위를 벗어난 입력(외삽): " + ", ".join(outside))
-            if estimate < 0 and (result.data.y >= 0).all():
-                st.warning("음수 예측입니다. 물리적으로 가능한 값인지 확인하세요.")
+            new_frame = pd.DataFrame([values], columns=train_X.columns)
+            baseline_frame = pd.DataFrame([baseline_values], columns=train_X.columns)
+            # 완전히 동일한 모델에 기본값과 변경값을 각각 전달해 차이를 확인한다.
+            estimates = np.asarray(result.predict(pd.concat(
+                [baseline_frame, new_frame], ignore_index=True)), dtype=float).reshape(-1)
+            if len(estimates) != 2 or not np.all(np.isfinite(estimates)):
+                raise ValueError("예측 모델이 유효한 두 개의 예측값을 반환하지 않았습니다.")
+            baseline_estimate, estimate = map(float, estimates)
+            previous = st.session_state.get(cache_key)
+            st.session_state[cache_key] = {
+                "values": dict(values), "estimate": estimate,
+                "baseline_estimate": baseline_estimate,
+                "previous_estimate": previous["estimate"] if previous else None,
+                "previous_values": previous["values"] if previous else None,
+            }
         except (ValueError, FloatingPointError, OverflowError) as error:
-            st.error(str(error))
+            st.error(f"새 입력값 예측에 실패했습니다: {error}")
+
+    saved = st.session_state.get(cache_key)
+    if saved is None:
+        st.info("입력값을 바꾼 뒤 위의 '입력값 예측 · 이전 값과 비교'를 누르면 "
+                "기준 예측값, 변경 예측값, 차이가 함께 표시됩니다.")
+    else:
+        current = saved["estimate"]
+        base = saved["baseline_estimate"]
+        delta = current - base
+        c_base, c_current, c_delta = st.columns(3)
+        c_base.metric("기준 예측 Y (학습 X 중앙값)", f"{base:.10g}")
+        c_current.metric(f"변경한 입력의 예측 {result.data.y.name}", f"{current:.10g}")
+        c_delta.metric("기준 대비 예측 변화량", f"{delta:+.10g}")
+        if saved["previous_estimate"] is not None:
+            prev_delta = current - saved["previous_estimate"]
+            st.write(f"바로 이전에 누른 예측과 비교: 이전 **{saved['previous_estimate']:.10g}** "
+                     f"→ 현재 **{current:.10g}** (차이 **{prev_delta:+.10g}**)")
+
+        compared = pd.DataFrame([
+            {"입력변수 (X)": name, "기준 (학습 중앙값)": baseline_values[name],
+             "현재 입력": saved["values"][name],
+             "입력 변화": saved["values"][name] - baseline_values[name]}
+            for name in train_X.columns
+        ])
+        with st.expander("어떤 X를 바꿨는지 확인", expanded=True):
+            st.dataframe(compared, use_container_width=True, hide_index=True)
+        changed = [name for name in train_X.columns
+                   if not np.isclose(saved["values"][name], baseline_values[name],
+                                     rtol=1e-12, atol=1e-12)]
+        if not changed:
+            st.info("모든 입력이 기준값(학습 데이터의 중앙값)과 같습니다. "
+                    "입력변수 중 하나를 바꾸고 버튼을 다시 눌러 주세요.")
+        elif np.isclose(current, base, rtol=1e-10, atol=1e-12):
+            st.warning("입력값은 바뀌었지만 기준값과 예측값의 차이가 매우 작습니다. "
+                       "이 경우 화면 표시 문제가 아니라 학습된 모델이 해당 입력 변화에 "
+                       "거의 반응하지 않는 것일 수 있습니다. 아래 민감도 그래프를 확인하세요.")
+        else:
+            st.success("입력 변화가 모델의 예측값 변화에 반영되었습니다.")
+        outside = [name for name in saved["values"]
+                   if not train_X[name].min() <= saved["values"][name] <= train_X[name].max()]
+        if outside:
+            st.warning("학습 범위를 벗어난 입력(외삽): " + ", ".join(outside))
+        if current < 0 and (result.data.y >= 0).all():
+            st.warning("음수 예측입니다. 물리적으로 가능한 값인지 확인하세요.")
+
+        with st.expander("입력변수별 예측 변화 그래프 (민감도 확인)", expanded=True):
+            st.caption("다른 입력변수는 방금 예측한 값으로 고정하고, 선택한 X만 "
+                       "학습 데이터의 최솟값~최댓값 사이에서 바꿉니다. "
+                       "학습된 모델의 반응을 보는 진단 그래프이며 정답 데이터 그래프는 아닙니다.")
+            inspected = st.selectbox("변화시켜 볼 X 변수", train_X.columns.tolist(),
+                                     key=f"ann_sensitivity_{signature[:12]}")
+            low, high = float(train_X[inspected].min()), float(train_X[inspected].max())
+            if np.isfinite(low) and np.isfinite(high) and low < high:
+                samples = np.linspace(low, high, 61)
+                sensitivity_inputs = pd.DataFrame([saved["values"]] * len(samples),
+                                                  columns=train_X.columns)
+                sensitivity_inputs[inspected] = samples
+                try:
+                    response = np.asarray(result.predict(sensitivity_inputs), dtype=float).reshape(-1)
+                    if len(response) != len(samples) or not np.all(np.isfinite(response)):
+                        raise ValueError("민감도 분석에서 유효하지 않은 예측값이 나왔습니다.")
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=samples, y=response, mode="lines+markers",
+                                             name="학습된 모델의 예측 Y",
+                                             marker=dict(size=3)))
+                    fig.add_trace(go.Scatter(x=[saved["values"][inspected]], y=[current],
+                                             mode="markers", name="현재 예측", marker=dict(size=12)))
+                    fig.update_layout(xaxis_title=inspected,
+                                      yaxis_title=f"예측 {result.data.y.name}", height=360)
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.write(f"학습 범위 내 **{inspected}** 변화에 따른 예측 Y 범위: "
+                             f"**{np.min(response):.10g} ~ {np.max(response):.10g}** "
+                             f"(차이 {np.ptp(response):.10g})")
+                    if np.isclose(np.ptp(response), 0, atol=1e-12,
+                                  rtol=1e-10):
+                        st.warning("이 변수의 학습 범위에서 모델 예측이 거의 일정합니다. "
+                                   "코드 표시보다 모델의 학습 결과·입력변수 선택을 점검해야 합니다.")
+                except (ValueError, FloatingPointError, OverflowError) as error:
+                    st.warning(f"민감도 그래프를 만들지 못했습니다: {error}")
+            else:
+                st.info("이 입력변수는 학습값이 모두 같아 민감도 그래프를 만들 수 없습니다.")
     st.caption("각 입력이 학습 범위 안이어도 그 조합까지 학습된 것은 아닙니다. "
                "새 선박 설계나 실무 의사결정에 바로 적용할 수 있는 검증 모델은 아닙니다.")
 
