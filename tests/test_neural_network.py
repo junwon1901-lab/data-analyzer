@@ -172,3 +172,25 @@ def test_displayed_weights_reconstruct_the_actual_prediction(frame, config, acti
             assert trace["h = 활성화(z)"] == pytest.approx(state[0, 0])
     np.testing.assert_allclose(result.y_scaler.inverse_transform(state).ravel(), result.predict(row))
     assert int(result.layer_summary()["파라미터 수"].sum()) == (2 + 1)*16 + (16 + 1)*8 + (8 + 1)
+
+
+def test_log_target_positive_and_original_scale_metrics(frame, config):
+    frame = frame.copy()
+    frame['y'] = np.exp(frame['x'])
+    data = prepare_data(frame, ['x', 'z'], 'y')
+    result = train_network(data, replace(config, target_transform='log'))
+    np.testing.assert_allclose(result.y_scaler.mean_, np.log(data.y.iloc[result.splits['학습']]).mean())
+    predictions = result.predict(data.X)
+    assert np.isfinite(predictions).all() and (predictions > 0).all()
+    idx = result.splits['테스트']
+    expected = np.sqrt(np.mean((data.y.iloc[idx].to_numpy() - predictions[idx])**2))
+    assert result.metrics.set_index('데이터').loc['테스트', 'RMSE'] == pytest.approx(expected)
+
+
+def test_log_target_rejects_zero_and_negative(frame, config):
+    for value in (0, -1):
+        positive = frame.copy()
+        positive['y'] = np.exp(positive['x'])
+        positive.loc[0, 'y'] = value
+        with pytest.raises(ValueError, match='0보다'):
+            train_network(prepare_data(positive, ['x', 'z'], 'y'), replace(config, target_transform='log'))

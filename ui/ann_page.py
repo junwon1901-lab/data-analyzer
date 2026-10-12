@@ -108,7 +108,18 @@ def render_ann(df, source_name="사용자 데이터"):
         st.caption("나머지 데이터의 20%는 검증용으로 분리합니다. 검증 오차가 충분히 개선되지 "
                    "않는 상태가 40회 지속되면 멈추고, 검증 오차가 가장 낮았던 가중치를 복원합니다. "
                    "그룹별 분리에서는 비율이 행 수가 아닌 그룹 수 기준입니다.")
+    target_transform = st.selectbox(
+        "목표값 변환", ["log", "standard"],
+        index=0 if target == DEFAULT_TARGET else 1,
+        format_func=lambda x: "양수 전용: 로그 변환" if x == "log" else "일반 표준화 (기존 방식)",
+        key=f"ann_transform_{target}",
+    )
+    if target_transform == "log":
+        st.caption("양수 목표값의 로그를 표준화해 학습하고, 예측 시 표준화를 되돌린 뒤 exp를 적용합니다. "
+                   "음수를 0으로 잘라내는 방식이 아닙니다. 학습 곡선은 로그 목표값의 표준화 MSE, "
+                   "RMSE·MAE와 구조 선택은 원래 목표값 척도입니다. 기존 결과와 구분해 기록하세요.")
     config = ANNConfig(
+        target_transform=target_transform,
         hidden_layers=tuple(int(n) for n in architecture.split(",")), activation=activation,
         learning_rate=rate, max_epochs=epochs, test_fraction=test_fraction,
         random_state=int(seed),
@@ -320,7 +331,7 @@ def _render_results(result, source_name, signature):
         values = {}
         for i, name in enumerate(train_X.columns):
             values[name] = cells[i % len(cells)].number_input(
-                name, value=float(train_X[name].median()), format="%.6g",
+                name, value=float(train_X[name].median()), format="%.9f",
                 help=f"학습 범위: {train_X[name].min():.6g} ~ {train_X[name].max():.6g}",
                 key=f"ann_input_{signature[:12]}_{i}",
             )

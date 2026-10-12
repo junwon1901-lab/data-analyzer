@@ -39,6 +39,7 @@ class ANNConfig:
     test_fraction: float = 0.2
     validation_fraction: float = 0.2  # 테스트 제외 나머지 중 검증 비율
     random_state: int = 42
+    target_transform: str = "standard"  # standard or log (strictly positive targets)
     split_mode: str = "random"  # random, group, ordered
 
     def __post_init__(self):
@@ -46,6 +47,8 @@ class ANNConfig:
             not isinstance(n, int) or not 1 <= n <= 128 for n in self.hidden_layers
         ):
             raise ValueError("은닉층은 1~3개, 각 층의 뉴런 수는 1~128개로 지정하세요.")
+        if self.target_transform not in ("standard", "log"):
+            raise ValueError("목표값 변환은 standard 또는 log입니다.")
         if self.activation not in ("relu", "tanh"):
             raise ValueError("활성화 함수는 relu 또는 tanh를 선택하세요.")
         if not 1 <= self.max_epochs <= 2000 or not 1 <= self.patience <= 200:
@@ -184,7 +187,9 @@ class ANNResult:
             raise ValueError("예측 입력에 빈칸·문자·무한대가 있습니다.")
         z = self.network.predict(self.x_scaler.transform(X))
         values = self.y_scaler.inverse_transform(z.reshape(-1, 1)).ravel()
-        if not np.isfinite(values).all():
+        if self.config.target_transform == "log":
+            values = np.exp(values)
+        if not np.isfinite(values).all() or (self.config.target_transform == "log" and (values <= 0).any()):
             raise ValueError("예측값이 유한하지 않습니다. 입력값과 학습 설정을 확인하세요.")
         return values
 
@@ -245,11 +250,14 @@ def train_network(data: PreparedData, config: ANNConfig, progress: Callable | No
     X = data.X.to_numpy(float)
     y = data.y.to_numpy(float)
     x_scaler = StandardScaler().fit(X[train])
-    y_scaler = StandardScaler().fit(y[train, None])
+    if config.target_transform == "log" and (y <= 0).any():
+        raise ValueError("로그 변환에는 모든 목표값이 0보다 커야 합니다. 일반 표준화를 선택하세요.")
+    transformed_y = np.log(y) if config.target_transform == "log" else y
+    y_scaler = StandardScaler().fit(transformed_y[train, None])
     X_train = x_scaler.transform(X[train])
     X_val = x_scaler.transform(X[val])
-    y_train = y_scaler.transform(y[train, None]).ravel()
-    y_val = y_scaler.transform(y[val, None]).ravel()
+    y_train = y_scaler.transform(transformed_y[train, None]).ravel()
+    y_val = y_scaler.transform(transformed_y[val, None]).ravel()
     network = MLPRegressor(
         hidden_layer_sizes=config.hidden_layers, activation=config.activation,
         solver="adam", alpha=config.alpha, learning_rate_init=config.learning_rate,
@@ -285,6 +293,10 @@ def train_network(data: PreparedData, config: ANNConfig, progress: Callable | No
                 continue
             pred_z = best_network.predict(x_scaler.transform(X[indices]))
             pred = y_scaler.inverse_transform(pred_z[:, None]).ravel()
+            if config.target_transform == "log":
+                pred = np.exp(pred)
+            if not np.isfinite(pred).all():
+                raise ValueError("예측 변환이 발산했습니다. 학습 설정을 확인하세요.")
             metric_rows.append({"데이터": name, "행 수": len(indices), **calc_metrics(y[indices], pred)})
     result = ANNResult(
         data=data, config=config, splits=splits, x_scaler=x_scaler, y_scaler=y_scaler,
