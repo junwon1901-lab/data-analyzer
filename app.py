@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from pathlib import Path
 
 from core.data_loader import load_file, excel_sheets, numeric_columns, clean_xy
 from core.regression import linear_regression, NONLINEAR_MODELS
@@ -16,20 +17,26 @@ APP_NAME = "데이터 분석 프로그램"
 APP_ICON = "📊"
 EXAMPLES = {
     "선체 저항 (Mendeley 범선 저항시험 데이터)": "data/example_hull_resistance.csv",
+    "선체 저항 전체 변수 (인공신경망용)": "data/example_hull_resistance_full.csv",
 }
+BASE_DIR = Path(__file__).resolve().parent
 
 st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="wide")
 st.title(f"{APP_ICON} {APP_NAME}")
-st.caption("CSV·Excel 파일을 불러와 X/Y축을 고르면 선형·비선형 회귀분석 결과를 보여줍니다.")
+st.caption("선형·비선형 회귀분석과 인공신경망을 이용한 데이터 예측")
 
 # ---------------- 1. 데이터 불러오기 ----------------
 with st.sidebar:
+    mode = st.radio("분석 모드", ["회귀분석 (1차 과제)", "인공신경망 (2차 과제)"], key="analysis_mode")
+    is_ann = mode.startswith("인공신경망")
     st.header("1. 데이터 불러오기")
     uploaded = st.file_uploader("CSV / Excel / 텍스트 파일",
                                 type=["csv", "xlsx", "xlsm", "xls", "txt", "data"])
     example = None
     if uploaded is None:
-        example = st.selectbox("또는 예제 데이터 사용", ["사용 안 함", *EXAMPLES])
+        example = st.selectbox("또는 예제 데이터 사용", ["사용 안 함", *EXAMPLES],
+                               index=2 if is_ann else 0,
+                               key="example_ann" if is_ann else "example_regression")
 
     sheet, header_row = 0, 0
     if uploaded is not None and uploaded.name.lower().endswith((".xlsx", ".xlsm", ".xls")):
@@ -46,7 +53,7 @@ try:
     if uploaded is not None:
         df = load_file(uploaded, sheet=sheet, header_row=header_row)
     elif example and example != "사용 안 함":
-        df = load_file(EXAMPLES[example])
+        df = load_file(BASE_DIR / EXAMPLES[example])
     else:
         st.info("👈 왼쪽에서 CSV 또는 Excel 파일을 올리거나 예제 데이터를 선택하세요.")
         st.stop()
@@ -59,6 +66,12 @@ if len(num_cols) < 2:
     st.error("숫자로 된 열이 2개 이상 있어야 회귀분석을 할 수 있습니다. 파일이 어떻게 읽혔는지 확인하세요.")
     st.write(f"읽힌 크기: {df.shape[0]}행 × {df.shape[1]}열")
     st.dataframe(df.head(10), use_container_width=True)
+    st.stop()
+
+# ANN은 여러 입력변수를 사용하므로 1차 과제의 단일 X축 처리와 분리한다.
+if is_ann:
+    from ui.ann_page import render_ann
+    render_ann(df, source_name=uploaded.name if uploaded is not None else example)
     st.stop()
 
 # ---------------- 2. 축 선택 ----------------
@@ -161,6 +174,8 @@ with tab_nonlin:
         st.warning(f"{model_name} 회귀를 이 데이터에 적용할 수 없습니다: {e}")
 
 with tab_cmp:
+    st.caption("이 표는 회귀식을 맞춘 데이터 자체에 대한 적합도입니다. "
+               "인공신경망 모드의 미학습 테스트 성능과 직접 비교하지 마세요.")
     results, skipped = [lin], []
     for name, func in NONLINEAR_MODELS.items():
         try:
