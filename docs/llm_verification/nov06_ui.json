@@ -1,0 +1,14 @@
+{
+  "method": "Streamlit AppTest; not a real browser screenshot",
+  "exceptions": 0,
+  "subheaders": [
+    "분석 대화",
+    "분석 결과",
+    "오차가 큰 개별 예측 10개",
+    "50 / 500 epoch 상한 비교",
+    "대화 기록"
+  ],
+  "tables": 4,
+  "saved_session_restored": true,
+  "overfitting_panel_present": true
+}

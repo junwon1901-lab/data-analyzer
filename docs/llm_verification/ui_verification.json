@@ -1,0 +1,6 @@
+{
+  "live_chat_ui": true,
+  "saved_session_reloaded": true,
+  "browser_screenshot": "not tested: browser sandbox restriction",
+  "mobile_layout": "not visually verified"
+}

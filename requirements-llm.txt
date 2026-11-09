@@ -1,0 +1,2 @@
+# Existing project dependencies suffice. Ollama is a separate desktop application.
+-r requirements.txt

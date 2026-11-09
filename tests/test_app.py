@@ -36,9 +36,9 @@ def test_ann_train_predict_and_invalidate():
     with patch("ui.ann_page.train_network", side_effect=AssertionError("unexpected retraining")):
         inputs = [n for n in app.number_input if (n.key or "").startswith("ann_input")]
         inputs[0].set_value(float(trained.data.X.iloc[trained.splits["학습"]].iloc[0, 0]))
-        next(b for b in app.button if b.label == "입력값 예측").click().run()
+        next(b for b in app.button if b.label == "입력값 예측 · 이전 값과 비교").click().run()
         assert not app.exception
-        assert any(m.label.startswith("예측 ") for m in app.metric)
+        assert any(m.label.startswith("변경한 입력의 예측 ") for m in app.metric)
     app.slider(key="ann_epochs").set_value(550).run()
     assert not app.exception
     assert not any(m.label == "테스트 R²" for m in app.metric)

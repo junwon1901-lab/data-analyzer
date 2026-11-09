@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-08",
+  "version": "nov06-feedback-update",
+  "tests": {
+    "command": "python3 -m pytest -q tests",
+    "passed": 39,
+    "failed": 0,
+    "seconds": 11.77,
+    "warnings": "pytest plugin deprecation; no test failure"
+  },
+  "live_requests": {
+    "passed": 13,
+    "total": 13,
+    "model": "qwen2.5:1.5b"
+  },
+  "ui": {
+    "method": "Streamlit AppTest; not a real browser screenshot",
+    "exceptions": 0,
+    "subheaders": [
+      "분석 대화",
+      "분석 결과",
+      "오차가 큰 개별 예측 10개",
+      "50 / 500 epoch 상한 비교",
+      "대화 기록"
+    ],
+    "tables": 4,
+    "saved_session_restored": true,
+    "overfitting_panel_present": true
+  },
+  "not_verified": [
+    "Windows/Mac user install",
+    "real browser/mobile layout",
+    "Docker build",
+    "public hosting/tunnel access",
+    "GitHub/Notion publish",
+    "LMS submit"
+  ],
+  "sha256": {
+    "llm_lab/analysis.py": "bfb8aea97f6da43c5b1aa1f47eb68bf28e526ed27618fcb23fca09412872b72c",
+    "llm_lab/__init__.py": "d6dcaedac7cdf351b172f88419c00580f4cf045d3525beab373896e01bbaa43e",
+    "llm_lab/session.py": "5888f736906990828e6d802e17b00373d946533daccd6d2c86ce34bb791200ca",
+    "llm_lab/agent.py": "74c5c8206c2cf3b456272c23300d68ec30166e4b44ea100e727ef3a47f7060a5",
+    "llm_lab/client.py": "e33e24f1f5541102c3e99182f9c050681a67aa7aa51ed9248ded6e968841e067",
+    "llm_lab/ui.py": "d4d62212d1e11a3bca0b830ccde892251bfd3bcec32e7e0c05b8f25e6a795a91"
+  }
+}

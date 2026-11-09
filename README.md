@@ -1,3 +1,7 @@
+# 마지막 LLM 과제
+
+현재 무료 배포는 [README_FREE.md](README_FREE.md)를 먼저 보세요. 아래 기존 분석 사용법은 유지했습니다.
+
 # 📊 데이터 분석 프로그램 (Data Analyzer)
 
 CSV·Excel 파일을 불러와 **선형·비선형 회귀분석**과 **인공신경망 예측**을 수행하는 Streamlit 프로그램입니다.
@@ -108,4 +112,6 @@ python scripts/compare_ann.py
 - [2차 과제: 인공신경망 보고서](https://app.notion.com/p/3f7d259f3ec780cc8b10cc88412a5af0)
 - [Streamlit 실행 앱](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/)
 
-Notion 보고서 열람에는 해당 페이지의 공유 권한이 필요할 수 있습니다. 마지막 LLM 과제의 무료 CPU 통합본은 별도로 준비되어 있으며, 이 링크 추가는 LLM 코드 업로드나 공개 배포 완료를 뜻하지 않습니다.
+- [마지막 과제: 오픈소스 LLM 보고서](https://app.notion.com/p/413d259f3ec78096923dcb8e5cc88b92)
+
+Notion 페이지의 공개 열람 권한과 실제 무료 서버 실행은 별도 확인이 필요합니다.

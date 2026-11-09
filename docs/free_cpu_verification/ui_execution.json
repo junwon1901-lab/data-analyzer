@@ -1,0 +1,48 @@
+{
+  "scope": "Development Linux CPU, not hosted Streamlit",
+  "checks": [
+    {
+      "case": "initial page",
+      "passed": true
+    },
+    {
+      "prompt": "안녕. 내 이름은 준원이야.",
+      "action": "chat",
+      "passed": true,
+      "ui_flow_passed": true,
+      "reply": "안녕, 준원. 이 프로그램은 normalized sailboat hull resistance를 예측하는 모델을 사용합니다.",
+      "wall_seconds": 29.254556798999943
+    },
+    {
+      "prompt": "내 이름이 뭐였지?",
+      "action": "chat",
+      "passed": false,
+      "ui_flow_passed": true,
+      "reply": "저는 AI 어시스턴트입니다. 당신의 이름은 무엇인가요?",
+      "wall_seconds": 25.87344426599998
+    },
+    {
+      "prompt": "데이터를 설명해줘",
+      "action": "describe",
+      "passed": true,
+      "ui_flow_passed": true,
+      "reply": "공개 선체 저항 데이터 1,018행, 21열, 선형 70개를 불러왔습니다. 입력은 Fn 등 8개, 목표는 전저항_Rt/Δ×10³입니다. 학습·검증·테스트 행 수는 {'학습': 640, '검증': 176, '테스트': 202}입니다.",
+      "wall_seconds": 22.57879027699994
+    },
+    {
+      "prompt": "선형회귀 해줘",
+      "action": "linear",
+      "passed": true,
+      "ui_flow_passed": true,
+      "reply": "분석을 완료했습니다. 아래 수치는 Python이 실제로 계산한 테스트 결과입니다.\n\n• 다변량 선형회귀: R² 0.8044, RMSE 22.9112, MAE 18.0864\n\n  음수 예측 43개: 저항의 물리적 의미에 맞지 않는 예측입니다.",
+      "wall_seconds": 19.452059167000016
+    },
+    {
+      "case": "different visitor has no previous name/results",
+      "passed": true,
+      "reply": "안녕하세요. 저는 AI 어시스턴트입니다. 이름은 알려주셔야 합니다."
+    }
+  ],
+  "peak_rss_mib": 2195.140625,
+  "all_passed": false
+}

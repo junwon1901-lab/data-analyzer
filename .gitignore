@@ -1,0 +1,11 @@
+
+# Local LLM runtime
+.venv/
+.llm_sessions/
+__pycache__/
+*.pyc
+
+.models/
+*.gguf
+*.part
+.pytest_cache/
