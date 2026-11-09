@@ -101,3 +101,11 @@ python scripts/compare_ann.py
 2026-10-03 로컬 자동 테스트 26개 통과. 모델과 Streamlit AppTest를 사용했으며 실제 배포 화면 검증은 별도입니다.
 
 
+
+## 과제 보고서와 실행 링크
+
+- [1차 과제: 선형·비선형 회귀 보고서](https://app.notion.com/p/3e4d259f3ec78056b61fc40b49aa7c47)
+- [2차 과제: 인공신경망 보고서](https://app.notion.com/p/3f7d259f3ec780cc8b10cc88412a5af0)
+- [Streamlit 실행 앱](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/)
+
+Notion 보고서 열람에는 해당 페이지의 공유 권한이 필요할 수 있습니다. 마지막 LLM 과제의 무료 CPU 통합본은 별도로 준비되어 있으며, 이 링크 추가는 LLM 코드 업로드나 공개 배포 완료를 뜻하지 않습니다.
