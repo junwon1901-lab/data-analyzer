@@ -40,7 +40,7 @@
 
 ## 5. 분석 결과
 
-아래 값은 개발 환경에서 실행한 검증 기록이다. 공개 Streamlit 서버에서 측정한 결과와는 구분한다.
+아래 값은 개발 환경에서 다시 계산한 결과다. 11월 11일에는 공개 Streamlit 앱에서도 모델 3가지 비교를 실행해 같은 소수 넷째 자리 결과와 표·그래프 표시를 확인했다.
 
 | 모델 | 테스트 R² | RMSE | MAE |
 | --- | ---: | ---: | ---: |
@@ -68,7 +68,7 @@ CPU 2개로 제한한 개발 환경에서 모델 처리 시간은 약 18.3–33.
 4. ‘선형회귀 해줘’, ‘신경망을 학습해줘’ 등의 요청으로 결과 표와 그래프를 확인한다.
 5. 필요한 분석 결과와 대화 기록을 내려받는다.
 
-현재 검증 범위는 개발 환경까지다. 제출 전에는 공개 앱에서 모델 다운로드가 완료되는지, 질문을 반복해도 서버가 중단되지 않는지, 로그아웃 상태나 다른 기기에서도 접속되는지 확인해야 한다. 서버의 파일은 재배포나 절전 복구 과정에서 사라질 수 있으므로 필요한 기록은 따로 내려받는다.
+11월 11일 수정본은 Python 3.12와 Python 3.14.10에서 각각 자동 검사 45개를 통과했다. 공개 앱에서는 모델 비교와 일반 인사 응답을 확인했다. 제출 전에는 공개 앱에서 모델 다운로드가 완료되는지, 질문을 반복해도 서버가 중단되지 않는지, 로그아웃 상태나 다른 기기에서도 접속되는지 확인해야 한다. 서버의 파일은 재배포나 절전 복구 과정에서 사라질 수 있으므로 필요한 기록은 따로 내려받는다.
 
 ## 8. 정리
 
@@ -84,4 +84,15 @@ CPU 2개로 제한한 개발 환경에서 모델 처리 시간은 약 18.3–33.
 - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python)
 - [GitHub 소스코드](https://github.com/junwon1901-lab/data-analyzer)
 - [실행 검증 기록](https://github.com/junwon1901-lab/data-analyzer/tree/main/docs/free_cpu_verification)
-- [Streamlit 앱](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/) — LLM 공개 서버 실행 확인 필요.
+- [Streamlit 앱](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/) — 11월 11일 공개 앱 모델 비교 및 인사 응답 확인.
+
+
+## 11월 11일 실행 화면과 재검증
+
+[상세 실행 기록](review_20261111/README.md)
+
+![공개 앱의 모델 비교 결과](review_20261111/live_compare.png)
+
+![실제값과 예측값 비교](review_20261111/predictions.png)
+
+![학습 상한 비교](review_20261111/learning.png)
