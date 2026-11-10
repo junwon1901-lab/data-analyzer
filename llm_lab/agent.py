@@ -35,7 +35,7 @@ def handle(text, session, client):
         reply = '\n\n'.join(lines)
     elif action in ('last','report','errors'):
         if not session['runs']:
-            reply = '저장된 분석 결과가 없습니다. 먼저 “선형회귀 해줘” 또는 “세 모델 비교해줘”라고 입력하세요.'
+            reply = '저장된 분석 결과가 없습니다. 먼저 “선형회귀 해줘” 또는 “모델 3가지 비교해줘”라고 입력하세요.'
         else:
             result = session['runs'][-1]
             reply = (f"{result['time']}의 분석 결과를 불러왔습니다. 모델을 새로 학습하지 않았습니다."

@@ -125,11 +125,8 @@ def render():
     a.metric('공개 데이터','1,018행')
     b.metric('선형 단위 분리','70개')
     c.metric('분석 입력 → 출력','8 → 1')
-    if not connected:
-        st.info('분석 화면은 준비되었습니다. 실제 대화는 Ollama와 선택한 모델이 연결되면 시작할 수 있습니다. '
-                '이 화면을 LLM 실행 성공 증거로 사용하지 마세요.')
-
-    quick = ['데이터를 설명해줘','선형회귀 해줘','비선형회귀 해줘','신경망 학습해줘','세 모델 비교해줘','이전 결과 보여줘']
+    quick = ['데이터를 설명해줘','선형회귀 해줘','비선형회귀 해줘','신경망 학습해줘','모델 3가지 비교해줘','이전 결과 보여줘']
+    st.caption('비교 대상: 선형회귀 · 다항회귀 · 인공신경망. 같은 데이터 분할로 다시 학습해 비교합니다.')
     chosen = None
     for col,label in zip(st.columns(3),quick[:3]):
         if col.button(label,use_container_width=True,disabled=not connected): chosen=label
@@ -145,8 +142,8 @@ def render():
             with st.chat_message(message['role']): st.write(message['content'])
         if not current['messages']:
             with st.chat_message('assistant'):
-                st.write('안녕하세요. “세 모델 비교해줘”라고 입력하면 같은 데이터로 회귀·신경망 분석을 실행할 수 있어요.')
-        prompt=st.chat_input('예: 세 모델 비교해줘 / 이전 결과 보여줘',disabled=not connected,max_chars=1200)
+                st.write('안녕하세요. “모델 3가지 비교해줘”라고 입력하면 같은 데이터로 회귀·신경망 분석을 실행할 수 있어요.')
+        prompt=st.chat_input('예: 모델 3가지 비교해줘 / 이전 결과 보여줘',disabled=not connected,max_chars=1200)
         if prompt or chosen:
             try:
                 with st.spinner('모델 준비 또는 응답 생성 중입니다. 첫 요청은 다운로드로 더 오래 걸립니다…'):

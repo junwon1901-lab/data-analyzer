@@ -29,7 +29,7 @@ def main():
            ('선형회귀 해줘.','linear'),
            ('비선형회귀 해줘.','polynomial'),
            ('신경망을 학습해줘.','neural'),
-           ('세 모델을 같은 조건으로 비교해줘.','compare'),
+           ('모델 3가지를 같은 조건으로 비교해줘.','compare'),
            ('50 epoch와 500 epoch를 비교해줘.','epoch_compare'),
            ('오차가 큰 예측 10개 보여줘.','errors'),
            ('보고서 만들어줘.','report'),
