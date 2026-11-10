@@ -1,7 +1,8 @@
 # Shared dependencies for app.py and pages/3_LLM_Chat.py.
-# Deployment refresh 2026-11-11: reinstall the complete environment (including Plotly).
+# Python 3.14: pandas 2.3.3 provides compatible wheels; avoid a source build.
+--only-binary=pandas
 streamlit==1.67.0
-pandas==2.2.3
+pandas==2.3.3
 numpy==2.3.5
 scipy==1.17.0
 plotly==6.9.0
