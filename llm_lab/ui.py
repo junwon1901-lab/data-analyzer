@@ -31,7 +31,7 @@ def draw_result(run):
                              line={'dash':'dash','color':'#94a3b8'}))
     fig.update_layout(height=480,template='plotly_white',title='보지 않은 선박에 대한 예측',
         xaxis_title='실제 정규화 저항',yaxis_title='예측 정규화 저항',
-        margin={'l':25,'r':25,'t':60,'b':25},legend={'orientation':'h','y':1.12})
+        margin={'l':25,'r':25,'t':60,'b':100},legend={'orientation':'h','y':-0.22,'x':0})
     st.plotly_chart(fig,use_container_width=True)
     st.caption('선형번호로 분리한 테스트 데이터입니다. 저항값은 N이 아닌 Rt/Δ × 10³입니다.')
     st.subheader('오차가 큰 개별 예측 10개')
