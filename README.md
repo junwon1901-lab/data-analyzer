@@ -13,6 +13,8 @@
 
 **바로 실행:** [https://junwon-data-analyzer-classic.streamlit.app/](https://junwon-data-analyzer-classic.streamlit.app/)
 
+**2차 과제 바로 실행:** [인공신경망 모드](https://junwon-data-analyzer-classic.streamlit.app/?mode=ann)
+
 ## 주요 기능
 
 - CSV·Excel·텍스트 파일 업로드, 예제 데이터 선택, 입력 데이터 필터
@@ -64,7 +66,7 @@ python -m streamlit run app.py
 - [기존 신경망 설명](docs/ann_assignment.md), [기존 실험 기록](docs/ann_experiment)
 - [보존판 복원·검증 기록](docs/RESTORATION.md)
 
-분리를 위해 AI를 활용해 배포용 파일과 문서를 정리했다. `app.py`는 기존 `legacy_app.py`의 화면을 그대로 복원했고, 회귀·신경망 계산 모듈은 변경하지 않았다. 실제 배포 성공 여부와 개발 환경 검증은 구분해 기록한다.
+분리를 위해 AI를 활용해 배포용 파일과 문서를 정리했다. `app.py`는 기존 `legacy_app.py` 화면을 복원하고 과제별 링크에 따른 초기 모드 선택을 추가했다. 회귀·신경망 계산 모듈은 변경하지 않았다. 실제 배포 성공 여부와 개발 환경 검증은 구분해 기록한다.
 
 ## 설명할 수 있어야 하는 질문
 

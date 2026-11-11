@@ -1,6 +1,7 @@
 # 인공신경망을 이용한 선체 저항 예측 프로그램
 
-> 제출용 설명서 초안. 코드 구현과 로컬 테스트는 완료했으나 GitHub·실행 앱·Notion 반영 및 LMS 제출은 아직 하지 않았다. 온라인 반영 후 직접 실행을 확인하고 이 안내를 실제 상태에 맞게 수정한다.
+> **2차 과제 실행:** [인공신경망 화면 바로 열기](https://junwon-data-analyzer-classic.streamlit.app/?mode=ann)
+> 기존 실험 기록을 보존한 설명서다. 프로그램은 별도 Streamlit 앱으로 배포했으며, LMS 제출 여부는 이 문서만으로 확인할 수 없다.
 
 > 2026-10-03 보강: 「2026. 10. 2. 데이터처리개론.txt」 녹취 텍스트를 확인하였다. 원본 음성을 청취한 것은 아니다. 기존 1차 과제 제출 완료와 이번 2차 과제 준비 상태는 구분한다.
 
@@ -33,9 +34,9 @@
 
 ## 2. 프로그램과 데이터 출처
 
-- GitHub: https://github.com/junwon1901-lab/data-analyzer
-- 기존 실행 앱: https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/
-- 현재 실행 앱에 2차 과제 기능이 반영됐는지는 별도로 확인해야 한다.
+- GitHub: https://github.com/junwon1901-lab/data-analyzer/tree/assignments-1-2
+- 2차 과제 실행 앱(인공신경망 모드): https://junwon-data-analyzer-classic.streamlit.app/?mode=ann
+- 1차 회귀분석은 같은 사이트의 회귀분석 모드에서 사용한다.
 - 원자료: Jean-David Caprace, Stefan Faller Fahrnholz (2022), Sailboat Hull Resistance Dataset and Predictive Model, Mendeley Data, Version 4.
 - 원자료 주소: https://data.mendeley.com/datasets/gw23dgzn6h/4
 - DOI: https://doi.org/10.17632/gw23dgzn6h.4

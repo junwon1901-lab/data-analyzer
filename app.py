@@ -25,6 +25,14 @@ st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="wide")
 st.title(f"{APP_ICON} {APP_NAME}")
 st.caption("선형·비선형 회귀분석과 인공신경망을 이용한 데이터 예측")
 
+# Direct assignment links choose the mode once; manual switches remain available.
+entry_mode = str(st.query_params.get("mode", "regression")).lower()
+if st.session_state.get("_entry_mode") != entry_mode:
+    if entry_mode in {"ann", "regression"}:
+        st.session_state["analysis_mode"] = ("인공신경망 (2차 과제)" if entry_mode == "ann"
+                                             else "회귀분석 (1차 과제)")
+    st.session_state["_entry_mode"] = entry_mode
+
 # ---------------- 1. 데이터 불러오기 ----------------
 with st.sidebar:
     mode = st.radio("분석 모드", ["회귀분석 (1차 과제)", "인공신경망 (2차 과제)"], key="analysis_mode")

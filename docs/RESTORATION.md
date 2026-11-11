@@ -39,3 +39,7 @@ Streamlit Community Cloud에 별도 앱을 배포했다. 기존 Data Lab과 다�
 ![공개 앱 선형회귀 화면](standalone_deployment/linear.jpg)
 
 ![공개 앱 인공신경망 새 입력 예측](standalone_deployment/prediction.jpg)
+
+## 2차 과제 직접 진입 링크
+
+2차 과제의 링크는 https://junwon-data-analyzer-classic.streamlit.app/?mode=ann 이다. 처음 접속할 때 인공신경망 모드가 선택된다. 이후 사용자가 화면에서 회귀분석으로 전환하는 것도 가능하다. 이를 위해 앱의 초기 모드 선택만 추가했으며 계산 모듈은 수정하지 않았다. 링크 직접 진입·수동 전환을 포함한 자동 검사 29개가 통과했다. GitHub의 2차 과제 설명서와 노션 보고서에서도 이 주소를 사용한다.

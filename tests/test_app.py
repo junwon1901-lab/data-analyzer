@@ -108,3 +108,19 @@ def test_compare_apply_and_invalidate_experiment():
     assert not app.exception
     assert "ann_experiment" not in app.session_state
     assert not any(m.label == "테스트 R²" for m in app.metric)
+
+
+def test_assignment_direct_links_and_manual_switch():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30)
+    app.query_params["mode"] = "ann"
+    app.run()
+    assert not app.exception
+    assert app.radio(key="analysis_mode").value == "인공신경망 (2차 과제)"
+    assert app.button(key="ann_train")
+    app.radio(key="analysis_mode").set_value("회귀분석 (1차 과제)").run()
+    assert not app.exception
+    assert app.radio(key="analysis_mode").value == "회귀분석 (1차 과제)"
+    app.query_params["mode"] = "regression"
+    app.run()
+    assert not app.exception
+    assert app.radio(key="analysis_mode").value == "회귀분석 (1차 과제)"
