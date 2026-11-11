@@ -9,7 +9,9 @@
 | 1·2차 과제 보존판 | `assignments-1-2` / `app.py` | 기존 파일 업로드·회귀 탭·신경망 학습 화면 |
 | 마지막 과제 Data Lab | `main` / `app.py` | 대화로 분석하는 오픈소스 LLM 앱 |
 
-[현재 Data Lab](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/)은 계속 운영한다. 이 보존판의 새 Streamlit 주소는 별도 앱 배포 후 생성된다. 두 앱은 서로 다른 브랜치로 배포하므로 한쪽을 수정해도 다른 쪽의 코드가 바뀌지 않는다.
+[현재 Data Lab](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/)은 계속 운영한다. 이 보존판은 [회귀·인공신경망 전용 사이트](https://junwon-data-analyzer-classic.streamlit.app/)에서 별도로 실행된다. 두 앱은 서로 다른 브랜치로 배포하므로 한쪽을 수정해도 다른 쪽의 코드가 바뀌지 않는다.
+
+**바로 실행:** [https://junwon-data-analyzer-classic.streamlit.app/](https://junwon-data-analyzer-classic.streamlit.app/)
 
 ## 주요 기능
 

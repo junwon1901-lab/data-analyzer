@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-11",
+  "site": "https://junwon-data-analyzer-classic.streamlit.app/",
+  "branch": "assignments-1-2",
+  "entrypoint": "app.py",
+  "regression": {
+    "linear_R2_display": 0.8495,
+    "polynomial_degree": 2,
+    "polynomial_R2_display": 0.8723
+  },
+  "neural": {
+    "features": 8,
+    "hidden_layers": [
+      64,
+      32,
+      16
+    ],
+    "split": "group",
+    "group": "선형번호",
+    "target_transform": "log",
+    "max_epochs": 500,
+    "seed": 42,
+    "executed_epochs": 157,
+    "best_epoch": 117,
+    "test_rows": 202,
+    "test_R2": 0.9258856674566452,
+    "test_RMSE": 14.103522822877048,
+    "test_MAE": 8.01026679364459
+  },
+  "prediction": {
+    "changed_feature": "프루드수_Fn",
+    "new_value": 0.4,
+    "baseline_display": 13.0742216,
+    "new_display": 22.30750584,
+    "delta_display": 9.233284243
+  },
+  "llm_app_preserved": true,
+  "llm_url": "https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/"
+}
