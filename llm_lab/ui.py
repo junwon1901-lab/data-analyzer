@@ -11,6 +11,7 @@ from llm_lab import analysis, session as memory
 
 
 def draw_result(run):
+    custom = run.get('custom_data', False)
     st.subheader('분석 결과')
     st.caption(f"{run['time']} · {run['selection_basis']}")
     rows = [m for r in run['models'] for m in r['metrics'] if m['split']=='테스트']
@@ -29,11 +30,11 @@ def draw_result(run):
     lo,hi = min(values),max(values)
     fig.add_trace(go.Scatter(x=[lo,hi],y=[lo,hi],mode='lines',name='예측 = 실제',
                              line={'dash':'dash','color':'#94a3b8'}))
-    fig.update_layout(height=480,template='plotly_white',title='보지 않은 선박에 대한 예측',
-        xaxis_title='실제 정규화 저항',yaxis_title='예측 정규화 저항',
+    fig.update_layout(height=480,template='plotly_white',title='사용자 데이터 테스트 예측' if custom else '보지 않은 선박에 대한 예측',
+        xaxis_title='실제값' if custom else '실제 정규화 저항',yaxis_title='예측값' if custom else '예측 정규화 저항',
         margin={'l':25,'r':25,'t':60,'b':100},legend={'orientation':'h','y':-0.22,'x':0})
     st.plotly_chart(fig,use_container_width=True)
-    st.caption('선형번호로 분리한 테스트 데이터입니다. 저항값은 N이 아닌 Rt/Δ × 10³입니다.')
+    st.caption('사용자 데이터의 무작위 테스트 분할입니다. 단위는 입력 원자료 기준입니다.' if custom else '선형번호로 분리한 테스트 데이터입니다. 저항값은 N이 아닌 Rt/Δ × 10³입니다.')
     st.subheader('오차가 큰 개별 예측 10개')
     st.caption('선택 모델 · 절대오차 순. R²는 정답률이 아니며 아래 큰 오차를 가리지 못합니다. 비율 0.5는 실제값의 절반을 예측했다는 뜻입니다.')
     errors = pd.DataFrame(analysis.worst_errors(run)).rename(columns={
@@ -54,7 +55,7 @@ def draw_result(run):
         for r in run['models']:
             st.write(r['name'],r['config'])
             if r['history']:
-                st.caption(f"채택 epoch: {r['best_epoch']} · 곡선은 표준화한 log(목표값)의 MSE")
+                st.caption(f"채택 epoch: {r['best_epoch']} · 곡선은 변환·표준화한 목표값의 MSE")
                 st.line_chart(pd.DataFrame(r['history']).set_index('epoch'))
         st.info(run['note'])
         if run.get('epoch_candidates'):
@@ -72,6 +73,18 @@ def render():
         st.session_state.hull_llm_session = memory.new_session()
     current = st.session_state.hull_llm_session
     client = LlamaCppClient()
+    with st.container(key='always_guide'):
+        st.markdown('**채팅 가이드 — 항상 표시**')
+        st.caption('학습: 선형회귀 해줘 · 비선형회귀 해줘 · 신경망 학습해줘 · 모델 3가지 비교해줘 | 기록: 보고서 만들어줘 | 초기화: 새 대화 시작')
+        dataset = current.get('dataset')
+        if dataset:
+            st.caption(f"현재: 사용자 데이터 {len(dataset['rows'])}행 | 입력: {', '.join(dataset['columns'][:-1])} | 목표: {dataset['columns'][-1]}")
+            st.code('예측: ' + ', '.join(f'{k}=1' for k in dataset['columns'][:-1]), language=None)
+        else:
+            st.caption('현재: 기본 선체 데이터 | 학습 후 아래 값들을 원하는 숫자로 바꾸어 예측하세요.')
+            st.code('예측: Fn=0.3, Rn=10000000, Cp=0.6, Cb=0.4, Cw=0.7, L_B=3.5, B_T=2.5, LCB_L=0', language=None)
+        st.caption('내 데이터 학습: 첫 줄에 데이터 입력, 다음 줄에 x,y 등 열 이름, 그 아래 숫자 표를 붙여 넣으세요. 마지막 열=정답, 앞 열=입력. CSV/엑셀 탭 구분, 30~1000행·입력 1~8개. 기본 데이터 사용으로 복귀. 여러 줄 입력은 Shift+Enter.')
+    st.markdown('<style>.st-key-always_guide {position:sticky;top:0px;background:var(--background-color, white);border:1px solid #8885;border-radius:12px;padding:10px;z-index:99;max-height:32vh;overflow:auto;}</style>', unsafe_allow_html=True)
     if not current['messages']:
         with st.chat_message('assistant'):
             st.write('안녕하세요. 선형회귀 해줘, 비선형회귀 해줘, 신경망 학습해줘처럼 입력하세요. 모델 3가지 비교해줘, 이전 결과 보여줘, 보고서 만들어줘도 가능합니다. 처음 질문할 때 모델을 자동으로 준비합니다. 새 대화 시작이라고 입력하면 대화를 초기화합니다.')
@@ -84,7 +97,7 @@ def render():
     if st.session_state.get('hull_last_action') == 'report':
         with st.chat_message('assistant'):
             st.markdown(memory.report(current))
-    prompt = st.chat_input('분석 요청이나 질문을 입력하고 Enter를 누르세요',max_chars=1200)
+    prompt = st.chat_input('분석 요청이나 질문을 입력하고 Enter를 누르세요',max_chars=100000)
     if prompt:
         if prompt.strip().rstrip('.!') in ('새 대화 시작','새 대화','대화 초기화'):
             st.session_state.hull_llm_session = memory.new_session()

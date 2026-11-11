@@ -44,11 +44,11 @@ def describe():
             'source': 'https://data.mendeley.com/datasets/gw23dgzn6h/4', 'license': 'CC BY 4.0'}
 
 
-def fit(kind, degree=2, *, max_epochs=500, trained_model=None):
+def fit(kind, degree=2, *, max_epochs=500, trained_model=None, dataset=None):
     if kind not in NAMES or degree not in (2, 3):
         raise ValueError('지원하지 않는 모델 또는 차수입니다.')
-    df, data = load_data()
-    cfg = replace(config(), max_epochs=max_epochs)
+    df, data = load_data() if dataset is None else custom_data(dataset)
+    cfg = replace(config(), max_epochs=max_epochs) if dataset is None else replace(config(), max_epochs=max_epochs, split_mode="random", target_transform="standard")
     splits = split_indices(data, cfg)
     train = splits['학습']
     model = None
@@ -79,7 +79,7 @@ def fit(kind, degree=2, *, max_epochs=500, trained_model=None):
                 points = [{'row': int(data.positions[i])+1, 'actual': float(y), 'predicted': float(p),
                            'residual': float(y-p), 'absolute_error': float(abs(y-p)),
                            'predicted_actual_ratio': float(p/y) if abs(y)>1e-12 else None,
-                           'hull': str(df.iloc[data.positions[i]]['선형번호']),
+                           'hull': str(df.iloc[data.positions[i]].get('선형번호', '사용자 데이터')),
                            'Fn': float(data.X.iloc[i,0])}
                           for i,y,p in zip(idx,actual,pred)]
     result = {'kind': kind, 'name': NAMES[kind], 'degree': degree, 'metrics': metrics,
@@ -87,7 +87,7 @@ def fit(kind, degree=2, *, max_epochs=500, trained_model=None):
               'config': asdict(cfg) if kind=='neural' else
                         {'standardize_train_only': True, 'degree': 1 if kind=='linear' else degree,
                          'ridge_alpha': 1.0 if kind=='polynomial' else None},
-              'data': describe()}
+              'data': describe() if dataset is None else {'source': '사용자 입력', 'features': list(data.X.columns), 'target': data.y.name, 'rows': len(df)}}
     return result, model
 
 
@@ -131,20 +131,25 @@ def worst_errors(run, limit=10):
     return sorted(rows, key=lambda p: p['absolute_error'], reverse=True)[:limit]
 
 
-def run_analysis(action, degree=2):
+def run_analysis(action, degree=2, dataset=None):
     if action == 'epoch_compare':
+        if dataset is not None:
+            raise ValueError('사용자 데이터에서는 선형회귀·비선형회귀·신경망·모델 3가지 비교를 사용하세요.')
         return compare_epochs()
     kinds = list(NAMES) if action=='compare' else [action]
-    results = [fit(kind, degree)[0] for kind in kinds]
+    results = [fit(kind, degree, dataset=dataset)[0] for kind in kinds]
     # 검증 세트로 선택한다. 테스트 점수로 최적 모델을 선택하지 않는다.
     best = min(results, key=lambda r: next(m['RMSE'] for m in r['metrics'] if m['split']=='검증'))
     return {'action': action, 'models': results, 'selected': best['kind'], 'degree': degree,
-            'selection_basis': '검증 RMSE (같은 선박 그룹 분리)',
-            'note': '비교를 반복하며 설정을 바꾸면 테스트 세트에 간접적으로 맞출 수 있습니다. '
+            'selection_basis': '검증 RMSE (같은 선박 그룹 분리)' if dataset is None else '검증 RMSE (사용자 데이터 동일 무작위 분할, seed=42)',
+            'custom_data': dataset is not None,
+            'note': ('사용자 데이터는 독립 표본을 가정합니다. 시계열·반복 측정 자료에는 이 분할이 적절하지 않을 수 있습니다. ' if dataset is not None else '') + '비교를 반복하며 설정을 바꾸면 테스트 세트에 간접적으로 맞출 수 있습니다. '
                     '이 결과는 고정 설정의 수업용 비교이며 실제 설계용 검증이 아닙니다.'}
 
 
 def predict(values, previous):
+    if set(values) - set(ALIASES) or not all(np.isfinite(v) for v in values.values()):
+        raise ValueError('입력 변수 이름과 유한한 숫자인지 확인하세요: ' + ', '.join(ALIASES))
     missing = [k for k in ALIASES if k not in values]
     if missing:
         raise ValueError('예측에 필요한 8개 입력 중 다음 값이 빠졌습니다: ' + ', '.join(missing) +
@@ -166,3 +171,26 @@ def predict(values, previous):
             'inputs': values, 'outside_training_range': outside,
             'warning': '변수별 범위 안이어도 실제 선박 조합의 타당성과 정확도가 보장되지는 않습니다.'}
 
+
+
+def custom_data(dataset):
+    df = pd.DataFrame(dataset['rows'], columns=dataset['columns'])
+    return df, prepare_data(df, list(df.columns[:-1]), df.columns[-1])
+
+
+def predict_custom(values, previous, dataset):
+    if not previous:
+        raise ValueError('먼저 선형회귀, 비선형회귀 또는 신경망 학습을 실행하세요.')
+    _, data = custom_data(dataset)
+    if set(values) != set(data.X.columns):
+        raise ValueError('입력 변수 이름을 모두 정확하게 지정하세요: ' + ', '.join(data.X.columns))
+    result, model = fit(previous['selected'], previous.get('degree', 2), dataset=dataset)
+    row = pd.DataFrame([values], columns=data.X.columns)
+    value = float(model.predict(row)[0])
+    if not np.isfinite(value):
+        raise ValueError('예측값이 유한하지 않습니다. 입력 범위를 확인하세요.')
+    cfg = replace(config(), split_mode='random', target_transform='standard')
+    reference = data.X.iloc[split_indices(data, cfg)['학습']]
+    return {'value': value, 'target': data.y.name, 'model': result['name'], 'inputs': values,
+            'outside_training_range': [k for k in values if not reference[k].min() <= values[k] <= reference[k].max()],
+            'warning': '사용자 데이터로 학습한 예측값입니다. 단위와 적용 가능 범위는 원자료를 확인하세요.'}
