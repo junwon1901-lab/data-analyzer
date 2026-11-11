@@ -39,7 +39,7 @@ def handle(text, session, client):
         else:
             result = session['runs'][-1]
             reply = (f"{result['time']}의 분석 결과를 불러왔습니다. 모델을 새로 학습하지 않았습니다."
-                     if action=='last' else '실제 분석 기록을 보고서로 정리했습니다. 아래 보고서 다운로드를 누르세요.')
+                     if action=='last' else '실제 분석 기록을 보고서로 정리했습니다. 아래 대화에서 확인하세요.')
             if action=='errors':
                 point = analysis.worst_errors(result, 1)[0]
                 reply = (f"선택 모델의 테스트 예측을 절대오차 순으로 정렬했습니다. 가장 큰 오차는 원자료 {point['row']}행: "
