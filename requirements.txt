@@ -1,5 +1,4 @@
-# Shared dependencies for app.py and pages/3_LLM_Chat.py.
-# Python 3.14: pandas 2.3.3 provides compatible wheels; avoid a source build.
+# Standalone assignments 1-2. Tested compatible wheels for Python 3.14.
 --only-binary=pandas
 streamlit==1.67.0
 pandas==2.3.3
@@ -10,4 +9,3 @@ openpyxl==3.1.5
 xlrd==2.0.2
 scikit-learn==1.8.0
 threadpoolctl==3.8.0
-llama-cpp-python @ https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36/llama_cpp_python-0.3.36-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl

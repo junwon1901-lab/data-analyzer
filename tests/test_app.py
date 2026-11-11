@@ -11,14 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def ann_app():
-    app = AppTest.from_file(str(ROOT / "legacy_app.py"), default_timeout=30).run()
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     app.radio(key="analysis_mode").set_value("인공신경망 (2차 과제)").run()
     assert not app.exception
     return app
 
 
 def test_original_mode_and_sample():
-    app = AppTest.from_file(str(ROOT / "legacy_app.py"), default_timeout=30).run()
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception
     app.selectbox(key="example_regression").set_value("선체 저항 (Mendeley 범선 저항시험 데이터)").run()
     assert not app.exception
