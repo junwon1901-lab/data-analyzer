@@ -132,6 +132,9 @@ def worst_errors(run, limit=10):
 
 
 def run_analysis(action, degree=2, dataset=None):
+    if dataset is not None and dataset.get('small_sample'):
+        from llm_lab.small_sample import run
+        return run(action, degree, dataset)
     if action == 'epoch_compare':
         if dataset is not None:
             raise ValueError('사용자 데이터에서는 선형회귀·비선형회귀·신경망·모델 3가지 비교를 사용하세요.')
@@ -179,6 +182,9 @@ def custom_data(dataset):
 
 
 def predict_custom(values, previous, dataset):
+    if dataset.get('small_sample'):
+        from llm_lab.small_sample import predict
+        return predict(values, previous, dataset)
     if not previous:
         raise ValueError('먼저 선형회귀, 비선형회귀 또는 신경망 학습을 실행하세요.')
     _, data = custom_data(dataset)

@@ -1,113 +1,170 @@
-"""대화 중심 Streamlit UI. 생성 답변과 실제 계산 결과를 구분해서 보여준다."""
-import json
-import os
+"""A conversation workspace: commands and real Python results share one thread."""
+from html import escape
 from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from llm_lab.client import OllamaClient, LLMError
+from llm_lab.client import LLMError
 from llm_lab.agent import handle
 from llm_lab import analysis, session as memory
 
+COLORS = ['#5281d6', '#6aab9b', '#ad8acb']
+REPORT_URL = 'https://app.notion.com/p/413d259f3ec78096923dcb8e5cc88b92'
 
-def draw_result(run):
+
+def chart_style(fig, **kwargs):
+    fig.update_layout(template='plotly_white', height=360, font={'family': 'Noto Sans KR, sans-serif', 'color': '#76859a', 'size': 11},
+                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#fafbfd',
+                      margin={'l': 25, 'r': 15, 't': 45, 'b': 45},
+                      legend={'orientation': 'h', 'y': -0.2}, **kwargs)
+    fig.update_xaxes(gridcolor='#edf1f7', zerolinecolor='#e3eaf4')
+    fig.update_yaxes(gridcolor='#edf1f7', zerolinecolor='#e3eaf4')
+    st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
+
+
+def network_diagram(model):
+    cfg = model['config']
+    layers = [len(model['data']['features']), *cfg.get('hidden_layers', (64,32,16)), 1]
+    items = []
+    for i, size in enumerate(layers):
+        if i:
+            items.append('<span class="arrow">→</span>')
+        label = '입력' if i == 0 else '출력' if i == len(layers)-1 else f'은닉층 {i}'
+        items.append(f'<div class="lab-layer {"output" if i == len(layers)-1 else ""}"><strong>{size}</strong>{label}</div>')
+    st.markdown('<div class="lab-network">' + ''.join(items) + '</div>', unsafe_allow_html=True)
+    st.caption(f"활성화 함수: {cfg.get('activation', 'relu')} · 입력을 가중합한 뒤 비선형 활성화를 거쳐 출력합니다.")
+
+
+def draw_result(run, *, errors_only=False):
     custom = run.get('custom_data', False)
-    st.subheader('분석 결과')
-    st.caption(f"{run['time']} · {run['selection_basis']}")
-    rows = [m for r in run['models'] for m in r['metrics'] if m['split']=='테스트']
-    table = pd.DataFrame(rows).rename(columns={'model':'모델','split':'구분','rows':'행 수',
-        'negative_predictions':'음수 예측 수','R2':'R²'})
-    st.dataframe(table[['모델','R²','RMSE','MAE','행 수','음수 예측 수']], hide_index=True,
-                 use_container_width=True)
+    evaluation = run.get('evaluation_label', '테스트')
+    selected = next(r for r in run['models'] if r['kind'] == run['selected'])
+    if errors_only:
+        st.markdown('#### 오차가 큰 예측')
+        table = pd.DataFrame(analysis.worst_errors(run)).drop(columns=['hull','Fn'], errors='ignore').rename(columns={
+            'row':'원자료 행','actual':'실제값','predicted':'예측값','residual':'잔차','absolute_error':'절대오차','predicted_actual_ratio':'예측/실제'})
+        st.dataframe(table, hide_index=True, width='stretch')
+        return
+    st.markdown(f"### {selected['name']}" + (' · 비교 결과' if len(run['models']) > 1 else ' · 분석 결과'))
+    st.caption(f"{selected['data']['source'] if custom else '공개 선체 저항 데이터'} · {selected['data']['rows']:,}행 · {evaluation}")
+    if selected.get('equation'):
+        st.markdown(f'<div class="lab-equation">{escape(selected["equation"])}</div>', unsafe_allow_html=True)
+    metric = next(m for m in selected['metrics'] if m['split'] == evaluation)
+    for column, title, key in zip(st.columns(3), ['R² · 결정계수', 'RMSE · 제곱평균제곱근오차', 'MAE · 평균절대오차'], ['R2','RMSE','MAE']):
+        column.metric(title, f'{metric[key]:.4f}')
     fig = go.Figure()
-    values = []
-    for r in run['models']:
-        points = r['test_points']
-        y, p = [x['actual'] for x in points], [x['predicted'] for x in points]
-        values.extend(y+p)
-        fig.add_trace(go.Scatter(x=y,y=p,mode='markers',name=r['name'],
-                      marker={'size':7,'opacity':0.7}))
-    lo,hi = min(values),max(values)
-    fig.add_trace(go.Scatter(x=[lo,hi],y=[lo,hi],mode='lines',name='예측 = 실제',
-                             line={'dash':'dash','color':'#94a3b8'}))
-    fig.update_layout(height=480,template='plotly_white',title='사용자 데이터 테스트 예측' if custom else '보지 않은 선박에 대한 예측',
-        xaxis_title='실제값' if custom else '실제 정규화 저항',yaxis_title='예측값' if custom else '예측 정규화 저항',
-        margin={'l':25,'r':25,'t':60,'b':100},legend={'orientation':'h','y':-0.22,'x':0})
-    st.plotly_chart(fig,use_container_width=True)
-    st.caption('사용자 데이터의 무작위 테스트 분할입니다. 단위는 입력 원자료 기준입니다.' if custom else '선형번호로 분리한 테스트 데이터입니다. 저항값은 N이 아닌 Rt/Δ × 10³입니다.')
-    st.subheader('오차가 큰 개별 예측 10개')
-    st.caption('선택 모델 · 절대오차 순. R²는 정답률이 아니며 아래 큰 오차를 가리지 못합니다. 비율 0.5는 실제값의 절반을 예측했다는 뜻입니다.')
-    errors = pd.DataFrame(analysis.worst_errors(run)).rename(columns={
-        'row':'원자료 행', 'hull':'선형번호', 'actual':'실제값', 'predicted':'예측값',
-        'residual':'잔차(실제-예측)', 'absolute_error':'절대오차', 'predicted_actual_ratio':'예측/실제'})
-    st.dataframe(errors, hide_index=True, use_container_width=True)
+    if selected.get('curve'):
+        fig.add_trace(go.Scatter(x=[p['x'] for p in selected['input_points']], y=[p['y'] for p in selected['input_points']], mode='markers', name='입력한 점', marker={'size':8,'color':'#263c5b'}))
+        for color, model in zip(COLORS, run['models']):
+            fig.add_trace(go.Scatter(x=[p['x'] for p in model['curve']], y=[p['y'] for p in model['curve']], mode='lines', name=model['name'],line={'color':color,'width':2}))
+        chart_style(fig, title='입력 데이터와 적합 곡선', xaxis_title=selected['data']['features'][0], yaxis_title=selected['data']['target'])
+        st.caption('곡선은 전체 입력 데이터에 적합했습니다. 위 지표는 각 행을 학습에서 제외한 교차검증 예측으로 계산합니다.')
+    else:
+        values = []
+        for color, model in zip(COLORS, run['models']):
+            points = model['test_points']
+            y, p = [x['actual'] for x in points], [x['predicted'] for x in points]
+            values.extend(y+p)
+            fig.add_trace(go.Scatter(x=y,y=p,mode='markers',name=model['name'],marker={'size':6,'opacity':.65,'color':color}))
+        lo,hi = min(values),max(values)
+        fig.add_trace(go.Scatter(x=[lo,hi],y=[lo,hi],mode='lines',name='예측 = 실제',line={'dash':'dash','color':'#a9b7cb'}))
+        chart_style(fig,title='실제값과 예측값',xaxis_title='실제값',yaxis_title='예측값')
+    if not custom:
+        st.caption('목표값: Rt/Δ × 10³ · 힘의 단위 N이 아닙니다. 같은 선박의 행은 학습·검증·테스트에 섞이지 않습니다.')
+    rows = [m for r in run['models'] for m in r['metrics'] if m['split'] == evaluation]
+    st.dataframe(pd.DataFrame(rows).rename(columns={'model':'모델','R2':'R²','rows':'평가 행 수','negative_predictions':'음수 예측 수'})[['모델','R²','RMSE','MAE','평가 행 수','음수 예측 수']], hide_index=True, width='stretch')
+    neural = next((r for r in run['models'] if r['kind'] == 'neural'), None)
+    if neural:
+        st.markdown('#### 신경망은 이렇게 연결됩니다')
+        network_diagram(neural)
+        if neural['history']:
+            history = pd.DataFrame(neural['history'])
+            loss = go.Figure()
+            for color, col in zip(COLORS, [c for c in history.columns if c != 'epoch']):
+                loss.add_trace(go.Scatter(x=history['epoch'],y=history[col],name=col,mode='lines',line={'color':color,'width':2}))
+            chart_style(loss,title='실제 학습 손실 곡선',xaxis_title='학습 횟수 (epoch)',yaxis_title='표준화한 목표 척도의 손실')
+            if neural['best_epoch'] is not None:
+                st.caption(f"검증 오차가 가장 작았던 {neural['best_epoch']} epoch의 가중치를 채택했습니다.")
     if run.get('epoch_candidates'):
-        st.subheader('50 / 500 epoch 상한 비교')
+        st.markdown('#### 50 / 500 epoch 상한 비교')
         rows = [{k:v for k,v in r.items() if k!='history'} for r in run['epoch_candidates']]
-        st.dataframe(pd.DataFrame(rows).rename(columns={'max_epochs':'상한', 'executed_epochs':'실행',
-                     'best_epoch':'채택', 'train_RMSE':'학습 RMSE', 'validation_RMSE':'검증 RMSE',
-                     'minimum_validation_MSE':'최소 검증 MSE', 'last_validation_MSE':'마지막 검증 MSE'}),
-                     hide_index=True, use_container_width=True)
-        st.caption('두 후보 모두 동일한 시드·분할·구조·조기 종료를 사용합니다. 검증 RMSE로 선택한 모델만 위 테스트 표에 표시됩니다.')
-    with st.expander('검증 성능 · 설정 · 학습 곡선'):
-        all_metrics = pd.DataFrame([m for r in run['models'] for m in r['metrics']])
-        st.dataframe(all_metrics,hide_index=True,use_container_width=True)
-        for r in run['models']:
-            st.write(r['name'],r['config'])
-            if r['history']:
-                st.caption(f"채택 epoch: {r['best_epoch']} · 곡선은 변환·표준화한 목표값의 MSE")
-                st.line_chart(pd.DataFrame(r['history']).set_index('epoch'))
-        st.info(run['note'])
-        if run.get('epoch_candidates'):
-            for candidate in run['epoch_candidates']:
-                st.caption(f"상한 {candidate['max_epochs']} 전체 학습 곡선")
-                st.line_chart(pd.DataFrame(candidate['history']).set_index('epoch'))
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width='stretch')
+    st.caption(run['selection_basis'])
+    st.caption(run['note'])
+    st.caption('이어가기: x가 10일 때 예측해줘 · 다른 모델로 학습해줘 · 오차가 큰 예측 10개 보여줘 · 보고서 만들어줘' if custom and len(selected['data']['features']) == 1 else '이어가기: 오차가 큰 예측 10개 보여줘 · 보고서 만들어줘 · 이전 결과 보여줘')
+
+
+def rail(current):
+    recent = [m['content'].splitlines()[0][:24] for m in current['messages'] if m['role'] == 'user'][-4:]
+    history = '<br>'.join(escape(m) for m in reversed(recent)) or '첫 번째 분석을 시작해 보세요.'
+    st.markdown(f'''<aside class="lab-rail"><div class="lab-wordmark"><span class="lab-symbol">∿</span> Data Lab</div>
++    <div class="rail-sub">JUNWON'S WORKSPACE</div>
++    <div class="rail-label">CHAT GUIDE</div><div class="rail-guide">
++    <div class="rail-command"><strong>직선으로 관계 찾기</strong><code>선형회귀 해줘</code></div>
++    <div class="rail-command"><strong>곡선으로 관계 찾기</strong><code>비선형회귀 해줘</code></div>
++    <div class="rail-command"><strong>입력과 출력 학습하기</strong><code>신경망 학습해줘</code></div>
++    <div class="rail-command"><strong>같은 조건에서 비교하기</strong><code>모델 3가지 비교해줘</code></div>
++    <div class="rail-command"><strong>결과 정리하기</strong><code>보고서 만들어줘</code></div>
++    <div class="rail-command"><strong>처음부터 시작하기</strong><code>새 대화 시작</code></div></div>
++    <div class="rail-label">RECENT REQUESTS</div><div class="rail-history">{history}</div>
++    <div class="rail-bottom"><a href="https://github.com/junwon1901-lab/data-analyzer" target="_blank">GitHub ↗</a><a href="{REPORT_URL}" target="_blank">과제 보고서 ↗</a><br>동아대학교 · 데이터처리개론<br>서준원 · 오픈소스 LLM 실습</div></aside>'''.replace('\n+', '\n'), unsafe_allow_html=True)
+
+
+def composer_guide(current):
+    data = current.get('dataset')
+    with st.container(key='composer_guide'):
+        st.markdown('**채팅 가이드 · 항상 표시** 　`도움말`을 입력하면 전체 사용법을 볼 수 있습니다.')
+        if data:
+            values = ', '.join(f'{k}=1' for k in data['columns'][:-1])
+            st.markdown(f"현재 **내 데이터 {len(data['rows'])}행** · 목표 `{data['columns'][-1]}` · 예측 형식 `{values}`")
+            st.markdown(f'학습 후 `예측: {values}` · `기본 데이터 사용`으로 전환')
+        else:
+            st.markdown('`선형회귀 해줘` · `비선형회귀 해줘` · `신경망 학습해줘` · `모델 3가지 비교해줘`')
+            st.markdown('내 숫자도 분석: `x: 1,2,3,4,5,6 y: 2,4,6,8,10,12 선형회귀 해줘`')
+        st.markdown('표 붙여 넣기: 첫 줄 `데이터 입력`, 다음 줄부터 열 이름과 숫자 30행 이상 · 마지막 열은 정답 · 줄바꿈 Shift+Enter')
 
 
 def render():
     from llm_lab.cloud_client import LlamaCppClient
-    st.set_page_config(page_title='선체 저항 챗봇',page_icon='⚓',layout='wide')
-    st.title('선체 저항 분석 챗봇')
-    st.caption('선형회귀 · 비선형회귀 · 인공신경망 | 원하는 분석을 채팅으로 요청하세요.')
+    st.set_page_config(page_title='Data Lab · 선체 저항과 데이터 분석',page_icon='〰',layout='wide')
+    st.markdown('<style>' + Path(__file__).with_name('ui.css').read_text(encoding='utf-8') + '</style>', unsafe_allow_html=True)
     if 'hull_llm_session' not in st.session_state:
         st.session_state.hull_llm_session = memory.new_session()
     current = st.session_state.hull_llm_session
-    client = LlamaCppClient()
-    with st.container(key='always_guide'):
-        st.markdown('**채팅 가이드 — 항상 표시**')
-        st.caption('학습: 선형회귀 해줘 · 비선형회귀 해줘 · 신경망 학습해줘 · 모델 3가지 비교해줘 | 기록: 보고서 만들어줘 | 초기화: 새 대화 시작')
-        dataset = current.get('dataset')
-        if dataset:
-            st.caption(f"현재: 사용자 데이터 {len(dataset['rows'])}행 | 입력: {', '.join(dataset['columns'][:-1])} | 목표: {dataset['columns'][-1]}")
-            st.code('예측: ' + ', '.join(f'{k}=1' for k in dataset['columns'][:-1]), language=None)
-        else:
-            st.caption('현재: 기본 선체 데이터 | 학습 후 아래 값들을 원하는 숫자로 바꾸어 예측하세요.')
-            st.code('예측: Fn=0.3, Rn=10000000, Cp=0.6, Cb=0.4, Cw=0.7, L_B=3.5, B_T=2.5, LCB_L=0', language=None)
-        st.caption('내 데이터 학습: 첫 줄에 데이터 입력, 다음 줄에 x,y 등 열 이름, 그 아래 숫자 표를 붙여 넣으세요. 마지막 열=정답, 앞 열=입력. CSV/엑셀 탭 구분, 30~1000행·입력 1~8개. 기본 데이터 사용으로 복귀. 여러 줄 입력은 Shift+Enter.')
-    st.markdown('<style>.st-key-always_guide {position:sticky;top:0px;background:var(--background-color, white);border:1px solid #8885;border-radius:12px;padding:10px;z-index:99;max-height:32vh;overflow:auto;}</style>', unsafe_allow_html=True)
+    rail(current)
+    st.markdown('<div class="lab-top"><span class="brand">데이터 분석 도우미</span><span class="lab-badge"><i></i>Python 분석 · 오픈소스 LLM</span></div>', unsafe_allow_html=True)
     if not current['messages']:
-        with st.chat_message('assistant'):
-            st.write('안녕하세요. 선형회귀 해줘, 비선형회귀 해줘, 신경망 학습해줘처럼 입력하세요. 모델 3가지 비교해줘, 이전 결과 보여줘, 보고서 만들어줘도 가능합니다. 처음 질문할 때 모델을 자동으로 준비합니다. 새 대화 시작이라고 입력하면 대화를 초기화합니다.')
-    for message in current['messages'][-16:]:
-        with st.chat_message(message['role']):
-            st.write(message['content'])
-    if current['runs']:
-        with st.chat_message('assistant'):
-            draw_result(current['runs'][-1])
-    if st.session_state.get('hull_last_action') == 'report':
-        with st.chat_message('assistant'):
-            st.markdown(memory.report(current))
-    prompt = st.chat_input('분석 요청이나 질문을 입력하고 Enter를 누르세요',max_chars=100000)
+        st.markdown('''<section class="lab-hero"><div class="lab-eyebrow">YOUR DATA, A CLEARER PICTURE</div><h1><em>안녕하세요,</em><br>무엇을 분석해 볼까요?</h1><p>숫자를 건네고, 궁금한 것을 물어보세요.<br>선형회귀부터 인공신경망까지 대화로 이어집니다.</p></section>''', unsafe_allow_html=True)
+        st.markdown('''<div class="lab-intro-grid"><div class="lab-intro-card"><div class="number">01 / REGRESSION</div><strong>관계와 곡선 찾기</strong><p>“선형회귀 해줘”<br>“3차 다항식으로 해줘”</p></div><div class="lab-intro-card"><div class="number">02 / NEURAL NETWORK</div><strong>데이터로 학습하기</strong><p>“신경망 학습해줘”<br>학습 곡선과 구조도 확인</p></div><div class="lab-intro-card"><div class="number">03 / YOUR DATA</div><strong>내 숫자로 예측하기</strong><p>x·y 목록이나 표를 입력하고<br>“x가 10일 때 예측해줘”</p></div></div>''', unsafe_allow_html=True)
+        st.markdown('<div class="lab-data-strip"><b>처음이라면</b>　“모델 3가지 비교해줘”로 시작해 보세요.<br>기본 데이터 1,018행 · 70개 선형 · 입력 8개 · 목표: 정규화 저항</div>', unsafe_allow_html=True)
+    runs = {r.get('id'): r for r in current['runs'] if r.get('id')}
+    for message in current['messages'][-20:]:
+        with st.chat_message(message['role'], avatar='〰' if message['role'] == 'assistant' else None):
+            content = message['content']
+            run = runs.get(message.get('run_id'))
+            if run and message.get('action') in ('linear','polynomial','neural','compare','epoch_compare'):
+                content = '데이터를 분석했습니다. 계산한 결과를 함께 살펴볼게요.'
+            if message['role'] == 'user' and len(content) > 1400:
+                content = content[:1000] + '\n\n… (입력한 데이터는 등록되어 있습니다.)'
+            st.markdown(content)
+            if message.get('report'):
+                st.markdown(message['report'])
+            elif run:
+                draw_result(run, errors_only=message.get('action') == 'errors')
+            if message.get('prediction'):
+                p = message['prediction']
+                st.metric(f"{p['model']} · {p['target']} 예측값", f"{p['value']:.6f}")
+    composer_guide(current)
+    prompt = st.chat_input('데이터를 입력하거나, 궁금한 것을 물어보세요',max_chars=100000)
     if prompt:
         if prompt.strip().rstrip('.!') in ('새 대화 시작','새 대화','대화 초기화'):
             st.session_state.hull_llm_session = memory.new_session()
             st.session_state.pop('hull_last_action',None)
             st.rerun()
         try:
-            with st.spinner('모델 준비 및 요청 처리 중… 첫 요청은 더 오래 걸릴 수 있습니다.'):
-                output=handle(prompt,current,client)
-            st.session_state['hull_last_action']=output['action']
+            with st.spinner('요청을 처리하고 있습니다. 일반 대화의 첫 요청은 모델 준비에 시간이 걸릴 수 있습니다.'):
+                output = handle(prompt,current,LlamaCppClient())
+            st.session_state['hull_last_action'] = output['action']
             st.rerun()
         except (LLMError,ValueError,OSError) as exc:
             st.error(str(exc))
-    st.caption('분석 수치와 그래프는 Python 계산 결과입니다. 일반 대화에는 오답이 있을 수 있습니다. 서버 재시작 시 대화 기록이 사라질 수 있습니다.')

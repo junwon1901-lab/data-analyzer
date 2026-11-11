@@ -70,4 +70,4 @@ def test_ui_initial_load(tmp_path,monkeypatch):
     monkeypatch.setenv('LLM_SESSION_DIR',str(tmp_path))
     at=AppTest.from_file(str(Path(__file__).resolve().parents[1]/'llm_chat.py'),default_timeout=30).run()
     assert not at.exception
-    assert any('선체 저항' in t.value for t in at.title)
+    assert any('데이터 분석 도우미' in t.value for t in at.markdown)

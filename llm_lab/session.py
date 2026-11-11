@@ -73,9 +73,12 @@ def report(session):
         lines += ['분석 실행 기록이 없다. 성능을 계산했다고 주장할 수 없다.']
     for i, run in enumerate(session['runs'],1):
         lines += ['', f"### 실행 {i}: {run.get('time','')} / {run['action']}",
-                  f"선택 기준: {run['selection_basis']}; 선택 모델: {run['selected']}", '',
-                  '| 모델 | 데이터 | R² | RMSE | MAE | 행 수 |', '|---|---|---:|---:|---:|---:|']
+                  f"선택 기준: {run['selection_basis']}; 선택 모델: {run['selected']}"]
         for r in run['models']:
+            lines += ['', f"데이터: {r['data']['source']} · {r['data']['rows']}행 · 입력 {', '.join(r['data']['features'])} · 목표 {r['data']['target']}"]
+            if r.get('equation'):
+                lines += ['', f"적합식: `{r['equation']}`"]
+            lines += ['', '| 모델 | 데이터 | R² | RMSE | MAE | 행 수 |', '|---|---|---:|---:|---:|---:|']
             for m in r['metrics']:
                 lines.append(f"| {m['model']} | {m['split']} | {m['R2']:.6f} | {m['RMSE']:.6f} | {m['MAE']:.6f} | {m['rows']} |")
             lines += ['', f"설정 ({r['name']}): `{json.dumps(r['config'], ensure_ascii=False)}`"]
@@ -85,7 +88,7 @@ def report(session):
             for row in run['epoch_candidates']:
                 lines.append(f"| {row['max_epochs']} | {row['executed_epochs']} | {row['best_epoch']} | {row['validation_RMSE']:.6f} |")
         from llm_lab.analysis import worst_errors
-        lines += ['', '#### 절대오차가 큰 테스트 예측 10개 (선택 모델)',
+        lines += ['', f"#### 절대오차가 큰 {run.get('evaluation_label', '테스트')} 예측 10개 (선택 모델)",
                   '| 원자료 행 | 선형번호 | 실제 | 예측 | 절대오차 | 예측/실제 |', '|---:|---|---:|---:|---:|---:|']
         for point in worst_errors(run):
             ratio = point['predicted_actual_ratio']
