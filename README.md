@@ -4,6 +4,8 @@
 
 [프로그램 열기](https://data-analyzer-farcyhew6tpc7bdizm6rvw.streamlit.app/) · [노션 보고서](https://app.notion.com/p/413d259f3ec78096923dcb8e5cc88b92) · [검증 기록](docs/studio_verification_20261111.md)
 
+![Data Lab 첫 화면](docs/studio_20261111/home.jpg)
+
 ## 숫자 목록으로 바로 시작하기
 
 아래 문장을 채팅에 입력한다.
